@@ -49,7 +49,41 @@ function install_distribution_specific() {
 
 			# disable conflicting services
 			disable_systemd_service_sdcard ondemand.service
-			;;
+
+			#
+			# @TODO Move to extensions
+			#
+			display_alert "Remove Ubuntu APT spamming" "${EXTENSION}" "info"
+
+			declare cleanup_id="" tmp_dir=""
+			prepare_temp_dir_in_workdir_and_schedule_cleanup "deb-fake-ubuntu-advantage-tools" cleanup_id tmp_dir # namerefs
+
+			declare fake_ubuntu_advantage_tools_dir="fake-ubuntu-advantage-tools_all"
+			display_alert "Building deb" "fake-ubuntu-advantage-tools" "info"
+
+			mkdir -p "${tmp_dir}/${fake_ubuntu_advantage_tools_dir}"/DEBIAN/
+
+			# set up control file
+			cat <<- END > "${tmp_dir}/${fake_ubuntu_advantage_tools_dir}"/DEBIAN/control
+				Package: fake-ubuntu-advantage-tools
+				Version: 0.3
+				Architecture: all
+				Conflicts: ubuntu-advantage-tools
+				Breaks: ubuntu-advantage-tools
+				Provides: ubuntu-advantage-tools (= 65535)
+				Description: Ban ubuntu-advantage-tools while satisfying ubuntu-minimal dependency
+				Maintainer: Originally by Vitaly _Vi Shukela <vi0oss@gmail.com>, this one updated by Skye with fix idea by gamemanj
+				Homepage: https://github.com/Skyedra/UnspamifyUbuntu
+			END
+			fakeroot_dpkg_deb_build "${tmp_dir}/${fake_ubuntu_advantage_tools_dir}"
+			install_deb_chroot "${tmp_dir}/${fake_ubuntu_advantage_tools_dir}.deb"
+			#
+			truncate --size=0 "${SDCARD}"/etc/apt/apt.conf.d/20apt-esm-hook.conf
+			#
+			# @TODO Move to extensions
+			#
+
+	;;
 	esac
 
 	# Basic Netplan config. Let NetworkManager/networkd manage all devices on this system
